@@ -2,55 +2,24 @@
 
 ![Build CI status](https://github.com/robotty/recent-messages2/workflows/Build/badge.svg)
 
-This is a rewrite of the [version 1 recent-messages service](https://github.com/robotty/recent-messages).
+NOTE: Use the project in private endpoint only. If looking for public access, see robotty's site for more privacy regulation's info.
 
 See https://recent-messages.robotty.de/ for all kinds of information you might want.
 
-## Build
+## Deploy
 
-1. [Install Rust](https://www.rust-lang.org/tools/install)
-2. On Debian and Ubuntu: `sudo apt install build-essential`, For other operating systems I recommend you just try to proceed with step three and then try to fix the missing compiler programs/system libraries as they pop up
-3. `git clone https://github.com/robotty/recent-messages2.git && cd recent-messages2`
-4. `cargo build --release`
-5. The binary application will be ready in `./target/release/recent-messages2` (On Windows with the additional `.exe` suffix). The binary is statically linked and so can be moved to other directories or sent to remote machines without need for additional files.
+Using ConfigMap as workaround to store secret in current stage. 
 
-## Install
+1. edit config in configmap.yaml(optional)
+2. kaf deployment/  
 
-The `config.toml` is expected to be in the working directory of the process. Edit it to your use case before first startup:
-
-```
-editor config.toml
-```
-
-The binary can be run with any process manager in the background (systemd etc.), or you can dockerize it. For testing purposes, you can use `cargo run --release`.
-
-A sample file for running it as a systemd unit is provided as `recent-messages2.service`.
-
-```
-cp ./recent-messages2.service /etc/systemd/system/recent-messages2.service
-```
-
-Now edit the service file to reflect your setup:
-
-```
-sudo editor /etc/systemd/system/recent-messages2.service
-```
-
-And start the service.
-
-```
-sudo systemctl daemon-reload
-sudo systemctl enable --now recent-messages2.service
-```
-
-View log output/service status:
-
-```
-sudo journalctl -efu recent-messages2.service
-sudo systemctl status recent-messages2.service
-```
-
-Also, wherever you placed the service's working directory, ensure there is a directory called `messages` that is writable for the service. Messages will be persisted there between restarts.
+## Features
+- [x] containerize to docker image
+- [x] deployable k8s file
+- [ ] expose using cloudflare tunnel
+- [ ] CI/CD pipeline with GitOps
+- [ ] optimized docker image
+- [ ] contianerize web and monitoring
 
 ## Web
 
@@ -59,4 +28,4 @@ There you can also find an example nginx config.
 
 ## Monitoring
 
-A prometheus metrics endpoint is exposed at `/api/v2/metrics`. You can import the `grafana-dashboard.json` in the repository as a dashboard template into a Grafana instance.
+~~A prometheus metrics endpoint is exposed at `/api/v2/metrics`. You can import the `grafana-dashboard.json` in the repository as a dashboard template into a Grafana instance.~~
