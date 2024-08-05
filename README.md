@@ -8,12 +8,13 @@ See https://recent-messages.robotty.de/ for all kinds of information you might w
 
 ## Deploy
 
-Using ConfigMap as workaround to store secret in current stage. 
+Using ConfigMap as workaround to store secret in current stage.
 
 1. edit config in configmap.yaml(optional)
-2. kaf deployment/  
+2. kaf deployment/
 
 ## Features
+
 - [x] containerize to docker image
 - [x] deployable k8s file
 - [ ] expose using cloudflare tunnel
