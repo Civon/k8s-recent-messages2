@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: '**'
+    branches: "**"
 
 permissions:
   checks: write
@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        os: [ubuntu, windows, macOS]
+        os: [ubuntu, arm]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -32,26 +32,17 @@ jobs:
         with:
           command: check
           token: ${{ secrets.GITHUB_TOKEN }}
-  build-rust-artifacts:
-    runs-on: ${{ matrix.os }}-latest
-    strategy:
-      matrix:
-        os: [ubuntu, windows, macOS, arm]
+
+  check-rust-light:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: cargo build --release
+      - name: cargo check
         uses: qRoC/cargo-actions@v1
         with:
-          command: build
-          args: --release
+          command: check
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-${{ matrix.os }}
-          path: |
-            target/release/recent-messages2
-            target/release/recent-messages2.exe
   check-format-prettier:
     runs-on: ubuntu-latest
     container: node:22-bookworm
@@ -60,21 +51,8 @@ jobs:
       - run: cd web && npm ci
       # If updating this command, make sure to update the same command in /scripts/reformat.sh too
       - run: ./web/node_modules/.bin/prettier --check --ignore-path ".gitignore" "**/*.md" "**/*.tsx" "**/*.yml" "**/*.json"
-  build-web:
-    runs-on: ubuntu-latest
-    container: node:${{ matrix.node }}-bullseye
-    strategy:
-      matrix:
-        node: [20, 22]
-    steps:
-      - uses: actions/checkout@v4
-      - run: cd web && npm ci
-      - run: cd web && npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-${{ github.ref_name }}
-          path: web/dist/
   build-and-push-docker:
+    needs: [check-format-rustfmt, check-rust, check-rust-light, check-format-prettier]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +61,7 @@ jobs:
         id: tags
         run: |
           BRANCH_NAME="${{ github.ref_name }}"
-          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           BASE_TAG="ghcr.io/${REPO_OWNER}/recent-messages2"
 
           TAGS="${BASE_TAG}:${BRANCH_NAME}"
