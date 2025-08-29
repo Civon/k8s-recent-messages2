@@ -1,6 +1,8 @@
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+    branches: '**'
 
 permissions:
   checks: write
@@ -31,12 +33,10 @@ jobs:
           command: check
           token: ${{ secrets.GITHUB_TOKEN }}
   build-rust-artifacts:
-    # only master branch
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        os: [ubuntu, windows, macOS]
+        os: [ubuntu, windows, macOS, arm]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -71,8 +71,59 @@ jobs:
       - run: cd web && npm ci
       - run: cd web && npm run build
       - uses: actions/upload-artifact@v4
-        # only master branch
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         with:
-          name: web
+          name: web-${{ github.ref_name }}
           path: web/dist/
+  build-and-push-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine Docker tags
+        id: tags
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          REPO_OWNER="${{ github.repository_owner }}"
+          BASE_TAG="ghcr.io/${REPO_OWNER}/recent-messages2"
+
+          TAGS="${BASE_TAG}:${BRANCH_NAME}"
+
+          # Add 'latest' tag for master branch
+          if [ "$BRANCH_NAME" = "master" ]; then
+            TAGS="${TAGS}\n${BASE_TAG}:latest"
+          fi
+
+          # Add version tag for v.* branches (remove 'v' prefix for cleaner tags)
+          if [[ "$BRANCH_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION_TAG="${BRANCH_NAME#v}"
+            TAGS="${TAGS}\n${BASE_TAG}:${VERSION_TAG}"
+          fi
+
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64,amd64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: recent-messages2
-        image: civon/recent-messages2:v0.1
+        image: ghcr.io/civon/recent-messages2:latest
         ports:
         - containerPort: 8080
         volumeMounts:
