@@ -28,7 +28,6 @@ Additional, you may want to expose your service to outra-net via some services, 
 
 ## Features
 
-
 - [x] containerize to docker image
 - [x] deployable k8s file
 <!-- - [ ] expose using cloudflare tunnel -->
