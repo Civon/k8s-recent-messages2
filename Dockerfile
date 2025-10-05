@@ -1,36 +1,43 @@
-# Start from a Rust base image
-FROM rust:1.79-bullseye as builder
+# Chef stage to prepare dependency recipe
+FROM rust:1.88.0-bookworm AS chef
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Create a new empty shell project
-RUN USER=root cargo new --bin recent-messages2
-WORKDIR /recent-messages2
+# Builder stage to cook dependencies and build the project
+FROM rust:1.88.0-bookworm AS builder
+WORKDIR /app
+RUN cargo install cargo-chef
+# Copy recipe and cook dependencies
+COPY --from=chef /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
-# Copy over your manifests
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./rust-toolchain.toml ./rust-toolchain.toml 
-
-# Copy your source tree
-COPY ./src ./src
-COPY ./migrations_main ./migrations_main
-COPY ./migrations_shard ./migrations_shard
-
-# Build for release.
+# Copy source and build the application
+COPY src ./src
+COPY migrations_main ./migrations_main
+COPY migrations_shard ./migrations_shard
 RUN cargo build --release
 
-# Our second stage, that will be the final image
-FROM debian:bullseye-slim
+# Final stage - Alpine 3.20 (latest stable, better ARM64 QEMU support)
+FROM alpine:3.20
+
 WORKDIR /app
 
-# Install libssl (needed for most applications)
-RUN apt-get update && apt-get install -y libssl-dev && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies, create app user, and set permissions
+RUN apk add --no-cache \
+        libgcc \
+        ca-certificates \
+        tzdata && \
+    adduser -D -u 10001 appuser && \
+    mkdir /app/messages && \
+    chown -R appuser:appuser /app
 
-# Copy the build artifact from the builder stage and set the startup command
-COPY --from=builder /recent-messages2/target/release/recent-messages2 .
-COPY config.toml .
+# Copy binary and config
+COPY --from=builder /app/target/release/recent-messages2 .
+COPY --chown=appuser:appuser config.toml .
 
-# Create a directory for messages
-RUN mkdir /app/messages
+# Switch to the new user
+USER appuser
 
-# Start the binary
 CMD ["./recent-messages2"]
