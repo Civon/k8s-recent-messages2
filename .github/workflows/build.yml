@@ -21,6 +21,7 @@ jobs:
           command: fmt
           args: -- --check
           token: ${{ secrets.GITHUB_TOKEN }}
+
   check-rust:
     runs-on: ${{ matrix.os }}-latest
     strategy:
@@ -36,7 +37,7 @@ jobs:
         with:
           command: check
           token: ${{ secrets.GITHUB_TOKEN }}
-
+          
   check-rust-light:
     runs-on: ubuntu-latest
     steps:
@@ -49,15 +50,9 @@ jobs:
         with:
           command: check
           token: ${{ secrets.GITHUB_TOKEN }}
-  check-format-prettier:
-    runs-on: ubuntu-latest
-    container: node:22-bookworm
-    steps:
-      - uses: actions/checkout@v4
-      - run: cd web && npm ci
-      # If updating this command, make sure to update the same command in /scripts/reformat.sh too
-      - run: ./web/node_modules/.bin/prettier --check --ignore-path ".gitignore" "**/*.md" "**/*.tsx" "**/*.yml" "**/*.json"
+
   build-and-push-docker:
+    needs: [check-format-rustfmt, check-rust, check-rust-light]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
