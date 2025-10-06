@@ -1,43 +1,26 @@
-# Chef stage to prepare dependency recipe
-FROM rust:1.88.0-bookworm AS chef
+# Minimal Dockerfile with efficient caching
+FROM rust:1.88.0-alpine AS builder
 WORKDIR /app
-RUN cargo install cargo-chef
+RUN apk add --no-cache musl-dev
+
+# Cache dependencies
+COPY Cargo.toml Cargo.lock ./
+# Create dummy main to build dependencies
+RUN mkdir -p src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+# Build actual code
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+RUN touch src/main.rs && cargo build --release
 
-# Builder stage to cook dependencies and build the project
-FROM rust:1.88.0-bookworm AS builder
-WORKDIR /app
-RUN cargo install cargo-chef
-# Copy recipe and cook dependencies
-COPY --from=chef /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
-
-# Copy source and build the application
-COPY src ./src
-COPY migrations_main ./migrations_main
-COPY migrations_shard ./migrations_shard
-RUN cargo build --release
-
-# Final stage - Alpine 3.20 (latest stable, better ARM64 QEMU support)
 FROM alpine:3.20
-
 WORKDIR /app
-
-# Install runtime dependencies, create app user, and set permissions
-RUN apk add --no-cache \
-        libgcc \
-        ca-certificates \
-        tzdata && \
+RUN apk add --no-cache ca-certificates tzdata && \
     adduser -D -u 10001 appuser && \
-    mkdir /app/messages && \
-    chown -R appuser:appuser /app
-
-# Copy binary and config
+    mkdir -p /app/messages
 COPY --from=builder /app/target/release/recent-messages2 .
-COPY --chown=appuser:appuser config.toml .
-
-# Switch to the new user
+COPY config.toml .
 USER appuser
-
 CMD ["./recent-messages2"]
