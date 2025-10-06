@@ -1,27 +1,22 @@
-# Minimal Dockerfile with efficient caching
 FROM rust:1.88.0-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache musl-dev
 
-# Cache dependencies
 COPY Cargo.toml Cargo.lock ./
-# Create dummy files for all binaries
-RUN mkdir -p src && \
-    echo "fn main() {}" > src/main.rs && \
-    echo "fn main() {}" > src/migrate_messages.rs && \
-    cargo build --release && \
-    rm -rf src
+RUN cargo fetch
 
-# Build actual code
 COPY . .
-RUN touch src/main.rs && cargo build --release
+RUN cargo build --release
 
 FROM alpine:3.20
 WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata && \
     adduser -D -u 10001 appuser && \
-    mkdir -p /app/messages
-COPY --from=builder /app/target/release/recent-messages2 .
-COPY config.toml .
+    mkdir -p /app/messages && \
+    chown -R appuser:appuser /app/messages
+
+COPY --from=builder --chown=appuser:appuser /app/target/release/recent-messages2 .
+COPY --chown=appuser:appuser config.toml .
+
 USER appuser
 CMD ["./recent-messages2"]
