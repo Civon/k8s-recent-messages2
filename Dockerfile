@@ -5,9 +5,10 @@ RUN apk add --no-cache musl-dev
 
 # Cache dependencies
 COPY Cargo.toml Cargo.lock ./
-# Create dummy main to build dependencies
+# Create dummy files for all binaries
 RUN mkdir -p src && \
     echo "fn main() {}" > src/main.rs && \
+    echo "fn main() {}" > src/migrate_messages.rs && \
     cargo build --release && \
     rm -rf src
 
