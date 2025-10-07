@@ -6,6 +6,7 @@ on:
 
 permissions:
   checks: write
+  packages: write
 
 jobs:
   check-format-rustfmt:
